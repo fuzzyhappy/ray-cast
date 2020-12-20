@@ -1,4 +1,3 @@
-import java.awt.geom.Ellipse2D;
 
 public class Player implements Constants {
     public double x;

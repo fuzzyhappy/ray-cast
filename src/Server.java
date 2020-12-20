@@ -17,7 +17,7 @@ public class Server implements Runnable, Constants {
     private Player player;
 
     private byte[][] map;
-    private boolean w, a, s, d;
+    private boolean w, a, s, d, r, l;
 
     public Server() {
         try (BufferedReader in = new BufferedReader(new FileReader("map.txt"))) {
@@ -33,9 +33,9 @@ public class Server implements Runnable, Constants {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        frontImage = new BufferedImage(map[0].length * side, map.length * side, BufferedImage.TYPE_INT_ARGB);
+        frontImage = new BufferedImage(resX, resY, BufferedImage.TYPE_INT_ARGB);
         front = frontImage.createGraphics();
-        backImage = new BufferedImage(map[0].length * side, map.length * side, BufferedImage.TYPE_INT_ARGB);
+        backImage = new BufferedImage(resX, resY, BufferedImage.TYPE_INT_ARGB);
         back = backImage.createGraphics();
 
 
@@ -54,30 +54,6 @@ public class Server implements Runnable, Constants {
         ImageIcon icon = new ImageIcon(frontImage);
         JLabel canvas = new JLabel(icon);
         frame.add(canvas);
-
-        frame.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                super.keyPressed(e);
-                switch (e.getKeyCode()) {
-                    case (KeyEvent.VK_W) -> w = true;
-                    case (KeyEvent.VK_A) -> a = true;
-                    case (KeyEvent.VK_S) -> s = true;
-                    case (KeyEvent.VK_D) -> d = true;
-                }
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-                super.keyReleased(e);
-                switch (e.getKeyCode()) {
-                    case (KeyEvent.VK_W) -> w = false;
-                    case (KeyEvent.VK_A) -> a = false;
-                    case (KeyEvent.VK_S) -> s = false;
-                    case (KeyEvent.VK_D) -> d = false;
-                }
-            }
-        });
 
         frame.addMouseMotionListener(new MouseMotionAdapter() {
             double oldX = 0;
@@ -109,13 +85,29 @@ public class Server implements Runnable, Constants {
 
                 System.out.printf("%.2f%n", fps);
 
-                if (w) player.vy -= v;
-                if (a) player.vx -= v;
-                if (s) player.vy += v;
-                if (d) player.vx += v;
+                double pAngle = player.angle + Math.PI / 4;
+                if (w) {
+                    player.vx += v * Math.cos(pAngle);
+                    player.vy += v * Math.sin(pAngle);
+                }
+                if (a) {
+                    player.vx += v * Math.cos(pAngle - Math.PI / 2);
+                    player.vy += v * Math.sin(pAngle - Math.PI / 2);
+                }
+                if (s) {
+                    player.vx -= v * Math.cos(pAngle);
+                    player.vy -= v * Math.sin(pAngle);
+                }
+                if (d) {
+                    player.vx += v * Math.cos(pAngle + Math.PI / 2);
+                    player.vy += v * Math.sin(pAngle + Math.PI / 2);
+                }
+                if (r) player.angle += 2 * Math.PI / sens;
+                if (l) player.angle -= 2 * Math.PI / sens;
                 player.update();
 
-                back.setColor(new Color(0, 0, 0));
+                /**
+                back.setColor(new Color(255, 255, 255));
                 for (int i = 0; i < map.length; i++) {
                     for (int j = 0; j < map[0].length; j++) {
                         if (map[i][j] == 1) {
@@ -123,41 +115,76 @@ public class Server implements Runnable, Constants {
                         }
                     }
                 }
-                back.setColor(new Color(0, 100, 200));
-                back.fill(new Ellipse2D.Double(player.x - 15.0 / 2, player.y - 15.0 / 2, 15, 15));
+                back.setColor(new Color(255, 0, 255));
+                back.fill(new Ellipse2D.Double(player.x - 7.0 / 2, player.y - 7.0 / 2, 7, 7));**/
 
                 double x = player.x;
                 double y = player.y;
                 double angle = player.angle;
                 double rayAngle;
+                double mag;
+                int val;
+                double height;
 
-                for (double i = 0; i <= Math.PI / 2; i += Math.PI / 2048) {
-                    rayAngle = validateAngle(angle + i);
-                    Raytrace ray = new Raytrace(x, y, rayAngle, map);
-                    double mag = ray.raytrace();
+                back.setColor(new Color(100, 100, 100));
+                back.fill(new Rectangle2D.Double(0, resY / 2.0, resX, resY / 2.0));
+
+                for (int i = 0; i < resX; i++) {
+                    rayAngle = validateAngle(angle + i * fov / resX);
+                    Raycast ray = new Raycast(x, y, rayAngle, map);
+                    mag = ray.raycast();
+                    val = (int) (255 / Math.pow(mag, 1.0 / 6));
+                    if (val > 255) val = 255;
+                    if (val < 0) val = 0;
+                    back.setColor(new Color(val, val, val));
+
+                    height = 15 * resY / Math.pow(mag, 1.0);
+                    back.fill(new Rectangle2D.Double(i, resY / 2.0 - height / 2, 1, height));/**
                     back.draw(new Line2D.Double(x, y,
                             x + mag * Math.cos(rayAngle),
-                            y + mag * Math.sin(rayAngle)));
+                            y + mag * Math.sin(rayAngle)));**/
                 }
 
                 front.drawImage(backImage, 0, 0, null);
-                back.setColor(new Color(255, 255, 255));
-                back.fill(new Rectangle2D.Double(0, 0, map[0].length * side, map.length * side));
+                back.setColor(new Color(0, 0, 0));
+                back.fill(new Rectangle2D.Double(0, 0, resX, resY));
                 frame.repaint();
             }
         });
         timer.setRepeats(true);
         timer.start();
 
-        back.setColor(new Color(0, 0, 0));
-        for (int i = 0; i < map.length; i++) {
-            for (int j = 0; j < map[0].length; j++) {
-                if (map[i][j] == '1') {
-                    back.fill(new Rectangle2D.Double(j * side, i * side, side, side));
+        frame.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+                switch (e.getKeyCode()) {
+                    case (KeyEvent.VK_W) -> w = true;
+                    case (KeyEvent.VK_A) -> a = true;
+                    case (KeyEvent.VK_S) -> s = true;
+                    case (KeyEvent.VK_D) -> d = true;
+                    case (KeyEvent.VK_RIGHT) -> r = true;
+                    case (KeyEvent.VK_LEFT) -> l = true;
+                }
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    frame.dispose();
+                    timer.stop();
                 }
             }
-        }
-        front.drawImage(backImage, 0, 0, null);
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                super.keyReleased(e);
+                switch (e.getKeyCode()) {
+                    case (KeyEvent.VK_W) -> w = false;
+                    case (KeyEvent.VK_A) -> a = false;
+                    case (KeyEvent.VK_S) -> s = false;
+                    case (KeyEvent.VK_D) -> d = false;
+                    case (KeyEvent.VK_RIGHT) -> r = false;
+                    case (KeyEvent.VK_LEFT) -> l = false;
+                }
+            }
+        });
 
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
