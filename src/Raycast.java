@@ -1,5 +1,5 @@
 /**
- * Represents a ray.
+ * Represents a ray. Raycasting algorithm is based off of DDA.
  *
  * @author Evan Wang
  * @version 2020.12.19
@@ -30,16 +30,18 @@ public class Raycast implements Constants {
     }
 
     /**
-     * Performs the raycast operation.
+     * Performs the raycast operation. Tracks absolute distance and not
+     * perpendicular distance to the hit wall.
      *
      * NOTE: a side effect of how the map is represented is that each grid
      * tile's sides range between [0, max).
      *
-     * @return distance between the ray's origin point and its endpoint
+     * @return RaycastCache containing raycast data
      */
-    public double raycast() {
+    public RaycastCache raycast() {
         boolean hit = false;
         double dist = 0;
+        int texture = 0;
         // current coordinates of the ray's endpoint
         double cx = x;
         double cy = y;
@@ -49,6 +51,7 @@ public class Raycast implements Constants {
 
         // while the ray has not hit a wall
         while (!hit) {
+
             try {
                 // if the x-direction of the ray is negative
                 if (angle > Math.PI / 2 && angle <= 3 * Math.PI / 2) {
@@ -66,6 +69,7 @@ public class Raycast implements Constants {
                 // if cos(angle) = 0
                 dx = Double.MAX_VALUE;
             }
+
             try {
                 // if the x-direction of the ray is positive
                 if (angle >= 0 && angle < Math.PI) {
@@ -84,6 +88,7 @@ public class Raycast implements Constants {
                 // if sin(angle) = 0
                 dy = Double.MAX_VALUE;
             }
+
             // calculates what direction to move the ray's endpoint in
             // prioritizes the shortest time to an edge
             if (dy < dx) {
@@ -96,43 +101,55 @@ public class Raycast implements Constants {
                 cx = stepX(cx, dx);
                 cy = stepY(cy, dy);
             }
+
             // calculates the distance the ray's endpoint has currently travelled
             dist = Math.sqrt((distX - x) * (distX - x) + (distY - y) * (distY - y));
+
             // edge case for endless corridor
-            if (dist > side * side) {
+            if (dist >= side * side && (Math.abs(Math.cos(angle)) <= sigma || Math.abs(Math.sin(angle)) <= sigma)) {
                 hit = true;
+                texture = -1;
             }
+
             // if the ray is prioritizing an x-side
             if (dx < dy) {
+
                 // if the x-direction of the ray is negative, check the tile to the left
                 if (angle > Math.PI / 2 && angle <= 3 * Math.PI / 2) {
-                    if (map[indexStepY(cy, 0)][indexStepX(cx, -1)] == 1) {
+                    if (map[indexStepY(cy, 0)][indexStepX(cx, -1)] != 0) {
                         hit = true;
+                        texture = map[indexStepY(cy, 0)][indexStepX(cx, -1)];
                     }
                 }
+
                 // if the x-direction of the ray is positive, check the tile to the right
                 if (angle <= Math.PI / 2 || angle > 3 * Math.PI / 2) {
-                    if (map[indexStepY(cy, 0)][indexStepX(cx, 0)] == 1) {
+                    if (map[indexStepY(cy, 0)][indexStepX(cx, 0)] != 0) {
                         hit = true;
+                        texture = map[indexStepY(cy, 0)][indexStepX(cx, 0)];
                     }
                 }
+
             // if the ray is prioritizing a y-side
             } else if (dy <= dx) {
                 // if the y-direction of the ray is positive, check the tile to the top
                 if (angle >= 0 && angle < Math.PI) {
-                    if (map[indexStepY(cy, 0)][indexStepX(cx, 0)] == 1) {
+                    if (map[indexStepY(cy, 0)][indexStepX(cx, 0)] != 0) {
                         hit = true;
+                        texture = map[indexStepY(cy, 0)][indexStepX(cx, 0)];
                     }
                 }
+
                 // if the y-direction of the ray is negative, check the tile to the bottom
                 if (angle >= Math.PI && angle < 2 * Math.PI) {
-                    if (map[indexStepY(cy, -1)][indexStepX(cx, 0)] == 1) {
+                    if (map[indexStepY(cy, -1)][indexStepX(cx, 0)] != 0) {
                         hit = true;
+                        texture = map[indexStepY(cy, -1)][indexStepX(cx, 0)];
                     }
                 }
             }
         }
-        return dist;
+        return new RaycastCache(texture, dist);
     }
 
     /**

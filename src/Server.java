@@ -122,7 +122,7 @@ public class Server implements Runnable, Constants {
                 double y = player.y;
                 double angle = player.angle;
                 double rayAngle;
-                double mag;
+                RaycastCache result;
                 int val;
                 double height;
 
@@ -132,14 +132,16 @@ public class Server implements Runnable, Constants {
                 for (int i = 0; i < resX; i++) {
                     rayAngle = validateAngle(angle + i * fov / resX);
                     Raycast ray = new Raycast(x, y, rayAngle, map);
-                    mag = ray.raycast();
-                    val = (int) (255 / Math.pow(mag, 1.0 / 6));
+                    result = ray.raycast();
+                    val = (int) (255 * Math.pow(4, -1 * result.distance / 160));
                     if (val > 255) val = 255;
                     if (val < 0) val = 0;
                     back.setColor(new Color(val, val, val));
 
-                    height = 15 * resY / Math.pow(mag, 1.0);
-                    back.fill(new Rectangle2D.Double(i, resY / 2.0 - height / 2, 1, height));/**
+                    height = side * resY / Math.pow(result.distance, 1.0);
+                    if (result.texture == 1) {
+                        back.fill(new Rectangle2D.Double(i, resY / 2.0 - height / 2, 1, height));
+                    }/**
                     back.draw(new Line2D.Double(x, y,
                             x + mag * Math.cos(rayAngle),
                             y + mag * Math.sin(rayAngle)));**/
@@ -195,10 +197,10 @@ public class Server implements Runnable, Constants {
                 timer.stop();
             }
         });
-        frame.setLocationRelativeTo(null);
 
         frame.pack();
         frame.validate();
+        frame.setLocationRelativeTo(null);
         frame.repaint();
         frame.setVisible(true);
     }
